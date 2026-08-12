@@ -1,9 +1,24 @@
 :root {
-  color-scheme: dark;
-  --bg: #0b0f19;
-  --fg: #f5f7fa;
-  --muted: #8b93a7;
+  color-scheme: light dark;
+  --bg: #f4f5f9;
+  --surface: #ffffff;
+  --border: #e4e6ee;
+  --fg: #14161f;
+  --muted: #6b7280;
   --accent: #ff6b35;
+  --accent-soft: rgba(255, 107, 53, 0.12);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0f19;
+    --surface: #131a2b;
+    --border: #232d45;
+    --fg: #f5f7fa;
+    --muted: #8b93a7;
+    --accent: #ff7a49;
+    --accent-soft: rgba(255, 122, 73, 0.16);
+  }
 }
 
 * {
@@ -14,6 +29,7 @@ html,
 body {
   height: 100%;
   margin: 0;
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -21,99 +37,252 @@ body {
   color: var(--fg);
   font-family:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  /* Respect the iPhone notch / home indicator when installed as a PWA. */
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
-    env(safe-area-inset-left);
 }
 
 #app {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
 }
 
 .app {
-  max-width: 480px;
+  height: 100%;
+  max-width: 520px;
   margin: 0 auto;
-  padding: 2rem 1.25rem 3rem;
+  display: flex;
+  flex-direction: column;
+  /* Respect the iPhone notch / home indicator when installed as a PWA. */
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
+/* ---------- Header ---------- */
+
 .app__header {
-  text-align: center;
-  margin-bottom: 2rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem 0.75rem;
+}
+
+.app__heading {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
 }
 
 .app__badge {
-  font-size: 3rem;
-  display: block;
-  margin-bottom: 0.5rem;
+  font-size: 1.75rem;
+  flex-shrink: 0;
 }
 
 .app__title {
-  font-size: 2.25rem;
+  font-size: 1.35rem;
   font-weight: 800;
-  margin: 0 0 0.5rem;
-  letter-spacing: -0.02em;
+  margin: 0;
+  letter-spacing: -0.01em;
 }
 
 .app__subtitle {
   color: var(--muted);
-  margin: 0;
-  font-size: 1rem;
+  margin: 0.1rem 0 0;
+  font-size: 0.8rem;
+}
+
+.refresh-btn {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 1.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.refresh-btn:active {
+  transform: scale(0.94);
+}
+
+.refresh-btn.is-spinning .refresh-btn__icon {
+  display: inline-block;
+  animation: spin 0.5s linear;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- Feed ---------- */
+
+.feed {
+  flex: 1;
+  min-height: 0;
+  padding: 0 1.25rem;
+}
+
+.feed__pull {
+  height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 0.82rem;
+  opacity: 0;
+  transition: height 0.2s ease, opacity 0.2s ease;
+}
+
+.feed__pull.is-pulling {
+  transition: none;
+}
+
+.feed__scroll {
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
 }
 
 .feed__status {
   color: var(--muted);
   text-align: center;
-  padding: 2rem 0;
+  padding: 3rem 1rem;
   margin: 0;
+  line-height: 1.5;
 }
 
 .feed__status--error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.feed__status--error p {
+  margin: 0;
   color: var(--accent);
+}
+
+.feed__retry {
+  min-height: 44px;
+  padding: 0 1.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.feed__retry:active {
+  background: var(--accent-soft);
 }
 
 .feed__list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0.5rem 0 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.7rem;
 }
 
-.feed__item {
-  background: #131a2b;
-  border: 1px solid #232d45;
-  border-radius: 12px;
-  padding: 0.9rem 1rem;
+/* ---------- Card ---------- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 0.95rem 1.1rem;
+  min-height: 44px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.feed__item-main {
+.card:active {
+  background: var(--accent-soft);
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.card__top {
   display: flex;
-  justify-content: space-between;
   align-items: baseline;
+  justify-content: space-between;
   gap: 0.75rem;
-  font-weight: 700;
 }
 
-.feed__player {
-  flex: 1;
-  min-width: 0;
+.card__player {
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.feed__team {
-  color: var(--muted);
-  font-weight: 500;
-  font-size: 0.85rem;
+.card__team {
   flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
 }
 
-.feed__item-meta {
-  display: flex;
-  gap: 0.75rem;
+.card__meta {
+  margin: 0.3rem 0 0;
   color: var(--muted);
-  font-size: 0.85rem;
-  margin-top: 0.35rem;
+  font-size: 0.82rem;
+}
+
+.card__badge {
+  display: inline-block;
+  margin-top: 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.card__stats {
+  margin: 0.4rem 0 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.card__description {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.25s ease, opacity 0.2s ease, margin-top 0.25s ease;
+}
+
+.card.is-expanded .card__description {
+  max-height: 6rem;
+  opacity: 1;
+  margin-top: 0.55rem;
 }

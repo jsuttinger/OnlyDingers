@@ -1,96 +1,49 @@
-import { createAsyncResource, getRecentHomeRuns, MlbApiError } from './data/index.js';
+import { createAsyncResource, getRecentHomeRuns } from './data/index.js';
+import { createFeed } from './ui/feed.js';
 
 /**
- * Root "component". This is a thin demo of the data layer (src/data/) —
- * it renders loading/error/success states off an async resource. Replace
- * the rendering here as the real UI takes shape; the data layer underneath
- * doesn't need to change.
+ * Root "component". Wires the data layer (src/data/) to the feed UI
+ * (src/ui/) — this file is the only place that knows about both.
  */
 export function createApp(root) {
   root.innerHTML = `
-    <main class="app">
+    <div class="app">
       <header class="app__header">
-        <span class="app__badge">⚾️</span>
-        <h1 class="app__title">Only Dingers</h1>
-        <p class="app__subtitle">MLB home runs, right on your home screen.</p>
+        <div class="app__heading">
+          <span class="app__badge">⚾️</span>
+          <div>
+            <h1 class="app__title">Only Dingers</h1>
+            <p class="app__subtitle">MLB home runs, right on your home screen.</p>
+          </div>
+        </div>
+        <button class="refresh-btn" id="refresh-btn" type="button" aria-label="Refresh home runs">
+          <span class="refresh-btn__icon" aria-hidden="true">↻</span>
+        </button>
       </header>
       <section class="feed" id="feed" aria-live="polite"></section>
-    </main>
+    </div>
   `;
 
-  const feedEl = root.querySelector('#feed');
+  const feedRoot = root.querySelector('#feed');
+  const refreshBtn = root.querySelector('#refresh-btn');
+
   const resource = createAsyncResource(getRecentHomeRuns);
+  const feed = createFeed(feedRoot, { onRefresh: refresh });
 
-  resource.subscribe((state) => renderFeed(feedEl, state));
-  // The subscriber above already reacts to the error state; swallow the
-  // rejection here so it doesn't also surface as an unhandled promise
-  // rejection (load() re-throws so callers awaiting it directly still can).
-  resource.load({ daysBack: 2 }).catch(() => {});
-}
+  resource.subscribe((state) => feed.render(state));
+  refresh();
 
-function renderFeed(feedEl, state) {
-  if (state.status === 'loading' || state.status === 'idle') {
-    feedEl.innerHTML = `<p class="feed__status">Loading recent home runs…</p>`;
-    return;
+  refreshBtn.addEventListener('click', refresh);
+
+  function refresh() {
+    refreshBtn.classList.add('is-spinning');
+    // The subscriber above already reacts to success/error; swallow the
+    // rejection here so it doesn't also surface as an unhandled rejection.
+    resource
+      .load({ daysBack: 2 })
+      .catch(() => {})
+      .finally(() => {
+        setTimeout(() => refreshBtn.classList.remove('is-spinning'), 400);
+      });
   }
-
-  if (state.status === 'error') {
-    const message =
-      state.error instanceof MlbApiError
-        ? state.error.message
-        : 'Something went wrong loading home runs.';
-    feedEl.innerHTML = `<p class="feed__status feed__status--error">⚠️ ${escapeHtml(message)}</p>`;
-    return;
-  }
-
-  const homeRuns = state.data ?? [];
-  if (homeRuns.length === 0) {
-    feedEl.innerHTML = `<p class="feed__status">No home runs in the last couple of days.</p>`;
-    return;
-  }
-
-  feedEl.innerHTML = `
-    <ul class="feed__list">
-      ${homeRuns.map(renderHomeRun).join('')}
-    </ul>
-  `;
-}
-
-function renderHomeRun(hr) {
-  const stats = [
-    hr.distanceFeet != null ? `${hr.distanceFeet} ft` : null,
-    hr.exitVelocityMph != null ? `${hr.exitVelocityMph} mph` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
-
-  return `
-    <li class="feed__item">
-      <div class="feed__item-main">
-        <span class="feed__player">${escapeHtml(hr.batter?.name ?? 'Unknown batter')}</span>
-        <span class="feed__team">${escapeHtml(hr.team?.name ?? '')}</span>
-      </div>
-      <div class="feed__item-meta">
-        <span>Inning ${escapeHtml(String(hr.inning ?? '?'))} (${escapeHtml(hr.halfInning ?? '')})</span>
-        ${stats ? `<span>${escapeHtml(stats)}</span>` : ''}
-      </div>
-    </li>
-  `;
-}
-
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, (char) => {
-    switch (char) {
-      case '&':
-        return '&amp;';
-      case '<':
-        return '&lt;';
-      case '>':
-        return '&gt;';
-      case '"':
-        return '&quot;';
-      default:
-        return '&#39;';
-    }
-  });
 }

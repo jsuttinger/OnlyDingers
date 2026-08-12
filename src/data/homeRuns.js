@@ -69,16 +69,28 @@ function extractHitData(play) {
   return eventWithHit?.hitData ?? null;
 }
 
+function normalizeTeam(team) {
+  if (!team) return null;
+  return {
+    id: team.id ?? null,
+    name: team.name ?? null,
+    abbreviation: team.abbreviation ?? null,
+  };
+}
+
 function normalizeHomeRun(play, { home, away }) {
   // Visiting team bats in the top half of the inning, home team in the bottom.
-  const battingTeam = play.about?.halfInning === 'top' ? away : home;
+  const isTop = play.about?.halfInning === 'top';
+  const battingTeam = isTop ? away : home;
+  const opponentTeam = isTop ? home : away;
   const hitData = extractHitData(play);
 
   return {
     id: String(play.about?.atBatIndex ?? `${play.result?.description ?? 'hr'}-${play.about?.startTime ?? ''}`),
     inning: play.about?.inning ?? null,
     halfInning: play.about?.halfInning ?? null,
-    team: battingTeam ? { id: battingTeam.id ?? null, name: battingTeam.name ?? null } : null,
+    team: normalizeTeam(battingTeam),
+    opponent: normalizeTeam(opponentTeam),
     batter: play.matchup?.batter
       ? { id: play.matchup.batter.id ?? null, name: play.matchup.batter.fullName ?? null }
       : null,
@@ -95,11 +107,35 @@ function normalizeHomeRun(play, { home, away }) {
     launchAngleDegrees: hitData?.launchAngle ?? null,
     trajectory: hitData?.trajectory ?? null,
     timestamp: play.about?.endTime ?? play.about?.startTime ?? null,
+    // Filled in below: how many HRs this batter has hit in this game.
+    gameHrNumber: null,
+    gameHrTotal: null,
   };
 }
 
+/** Tags each HR with its place among that same batter's HRs in this game (e.g. 2nd of 2). */
+function tagMultiHomerGames(homeRuns) {
+  const totalByBatter = new Map();
+  for (const hr of homeRuns) {
+    const key = hr.batter?.id ?? hr.batter?.name;
+    totalByBatter.set(key, (totalByBatter.get(key) ?? 0) + 1);
+  }
+
+  const runningByBatter = new Map();
+  for (const hr of homeRuns) {
+    const key = hr.batter?.id ?? hr.batter?.name;
+    const running = (runningByBatter.get(key) ?? 0) + 1;
+    runningByBatter.set(key, running);
+    hr.gameHrNumber = running;
+    hr.gameHrTotal = totalByBatter.get(key);
+  }
+
+  return homeRuns;
+}
+
 /**
- * Get all home run events for a single game, in play order.
+ * Get all home run events for a single game, in play order. Each HR is
+ * tagged with gameHrNumber/gameHrTotal (e.g. a player's 2nd of 2 that game).
  * `forceRefresh` bypasses the cache — pass it when polling a live game.
  */
 export async function getHomeRuns(gamePk, { signal, forceRefresh = false } = {}) {
@@ -108,9 +144,11 @@ export async function getHomeRuns(gamePk, { signal, forceRefresh = false } = {})
   const away = feed.gameData?.teams?.away;
   const plays = feed.liveData?.plays?.allPlays ?? [];
 
-  return plays
+  const homeRuns = plays
     .filter((play) => play.result?.event === 'Home Run')
     .map((play) => normalizeHomeRun(play, { home, away }));
+
+  return tagMultiHomerGames(homeRuns);
 }
 
 /**
