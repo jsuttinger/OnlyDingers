@@ -2,7 +2,8 @@
 
 A lightweight PWA that shows MLB home runs, built to run fast and feel native
 when pinned to an iPhone home screen. Vanilla JS + [Vite](https://vitejs.dev/)
-— no framework.
+— no framework. Data comes from the free, public
+[MLB Stats API](https://statsapi.mlb.com) (no key required).
 
 ## Project structure
 
@@ -15,9 +16,19 @@ OnlyDingers/
 │   └── icons/           # Generated PWA / apple-touch icons
 └── src/
     ├── main.js          # Entry point, mounts the app + registers the SW
-    ├── App.js            # Root "component" (placeholder for now)
+    ├── App.js            # Wires the data layer to the feed UI
+    ├── data/             # MLB Stats API client + domain layer (decoupled from UI)
+    │   ├── mlbApi.js      # low-level fetch + in-memory cache
+    │   ├── homeRuns.js    # games/home-run parsing, the module the UI imports
+    │   ├── asyncState.js  # tiny loading/error/data container
+    │   ├── mockHomeRuns.js  # static fixture for fast UI iteration
+    │   └── index.js       # public entry point for the data layer
+    ├── ui/               # feed rendering (no data-fetching in here)
+    │   ├── feed.js        # loading/error/empty/list states, pull-to-refresh
+    │   ├── card.js         # one home run's card markup
+    │   └── format.js       # date/stat formatting helpers
     └── styles/
-        └── main.css
+        └── main.css       # light/dark theme via prefers-color-scheme
 ```
 
 ## Run it locally
@@ -51,7 +62,8 @@ LAN) at `http://localhost:5173`.
 
 ### Install it as a home screen app
 
-1. Open the site in Safari on your iPhone (per above).
+1. Open the site in Safari on your iPhone (per above, or the GitHub Pages URL
+   below).
 2. Tap the **Share** icon → **Add to Home Screen**.
 3. It'll launch full-screen, without Safari's UI, like a native app.
 
@@ -61,8 +73,30 @@ LAN) at `http://localhost:5173`.
 > production build. Run `npm run build && npm run preview` to test the real
 > production build.
 
+## Deploying to GitHub Pages
+
+Pushing to `main` auto-deploys via `.github/workflows/deploy.yml`. One-time
+setup:
+
+1. In the repo on GitHub: **Settings → Pages → Source** → select
+   **GitHub Actions**.
+2. Push to `main` (or run the workflow manually from the **Actions** tab).
+3. The site publishes to `https://<your-username>.github.io/OnlyDingers/`.
+
+GitHub Pages serves project sites from that `/OnlyDingers/` subpath, so
+`vite.config.js` sets `base: '/OnlyDingers/'` for production builds only —
+`npm run dev` still runs at `/` locally, unaffected. If you ever rename the
+repo, update `base` in `vite.config.js` to match.
+
+To build the exact same output locally:
+
+```bash
+npm run build
+npm run preview
+```
+
 ## Status
 
-This is just the scaffold — `App.js` currently renders a placeholder
-"Only Dingers" screen to confirm the dev server, PWA manifest, and iPhone
-install flow all work end to end. The home run feed comes next.
+The main screen is a scrollable feed of home run cards (player, team, HR
+count for that game, distance/exit velo when available), pulling live from
+the MLB Stats API, with pull-to-refresh and a manual refresh button.

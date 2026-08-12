@@ -1,8 +1,12 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// GitHub Pages serves this repo from https://<user>.github.io/OnlyDingers/,
+// so production assets need that subpath as their base. Local dev stays at
+// "/" so the existing `npm run dev` + LAN/iPhone workflow is unaffected.
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  base: command === 'build' ? '/OnlyDingers/' : '/',
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
@@ -11,7 +15,8 @@ export default defineConfig({
         name: 'Only Dingers',
         short_name: 'Dingers',
         description: 'Live MLB home runs, right on your home screen.',
-        start_url: '/',
+        // Left unset on purpose — vite-plugin-pwa derives start_url/scope
+        // from `base` above, so this stays correct on GitHub Pages too.
         display: 'standalone',
         background_color: '#0b0f19',
         theme_color: '#0b0f19',
@@ -45,4 +50,4 @@ export default defineConfig({
     host: true,
     port: 5173,
   },
-});
+}));
