@@ -51,7 +51,11 @@ export function createDetailModal(root) {
     document.body.classList.add('modal-open');
     closeBtn.focus();
 
-    loadVideo(hr, token);
+    // Always check fresh, not just on the very first open — an earlier
+    // "not found" isn't necessarily permanent (see getHomeRunVideo), and
+    // this is the "on demand" recheck: reopening the card is the trigger,
+    // no background timers involved.
+    loadVideo(hr, token, { forceRefresh: true });
   }
 
   function close() {
@@ -70,7 +74,7 @@ export function createDetailModal(root) {
     const captionEl = bodyEl.querySelector('.detail__video-caption');
     if (!slot) return;
 
-    if (forceRefresh) slot.innerHTML = `<p class="detail__video-loading">Checking for video…</p>`;
+    slot.innerHTML = `<p class="detail__video-loading">Loading video…</p>`;
 
     try {
       const video = await getHomeRunVideo(hr, { forceRefresh });

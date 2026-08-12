@@ -230,41 +230,110 @@ export async function getRecentHomeRunsResilient({ daysBack = 2, endDate, signal
   }
 }
 
-// MLB often publishes a play's highlight clip some time after it happens —
-// this is how long after the play we keep treating "not found" as possibly
-// just "not published yet" rather than a settled answer.
-const VIDEO_RECHECK_WINDOW_MS = 6 * 60 * 60 * 1000; // 6 hours
+function keywordValue(item, type) {
+  return (item.keywordsAll ?? []).find((k) => k.type === type)?.value;
+}
+
+function hasHomeRunTaxonomy(item) {
+  return (item.keywordsAll ?? []).some((k) => k.type === 'taxonomy' && k.value === 'home-run');
+}
+
+function normalizeText(value) {
+  return (value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // strip accents (e.g. "Sánchez" -> "sanchez")
+    .toLowerCase();
+}
+
+/** If several candidates all pass a filter tier (e.g. a multi-HR game), pick the one published closest to when the play happened. */
+function pickClosestByDate(candidates, hr) {
+  if (candidates.length <= 1) return candidates[0] ?? null;
+
+  const playTime = hr.timestamp ? new Date(hr.timestamp).getTime() : null;
+  if (playTime == null) return candidates[0];
+
+  return candidates.reduce((best, item) => {
+    const itemTime = item.date ? new Date(item.date).getTime() : null;
+    if (itemTime == null) return best;
+    const bestTime = best?.date ? new Date(best.date).getTime() : Infinity;
+    return Math.abs(itemTime - playTime) < Math.abs(bestTime - playTime) ? item : best;
+  }, candidates[0]);
+}
+
+/**
+ * Highlight items are *supposed* to carry a `guid` matching the play's
+ * `playId` — when present, that's an exact, unambiguous match. In practice
+ * MLB's content API doesn't always populate it (confirmed: two identically-
+ * shaped "solo home run" clips from different games, one with guid set,
+ * one with guid entirely absent despite the video existing and playing
+ * fine) — a missing guid does NOT mean the video doesn't exist.
+ */
+function findVideoByGuid(items, playId) {
+  if (!playId) return null;
+  return items.find((item) => item.guid === playId) ?? null;
+}
+
+/**
+ * Fallback #1: highlight items are also tagged with game_pk/player_id/
+ * taxonomy keywords. Filtering to this game, this batter, and specifically
+ * "home-run" (excludes analysis/recap/other clips about the same player)
+ * covers most guid-less cases on its own.
+ */
+function findVideoByKeywords(items, hr) {
+  if (!hr.gamePk || !hr.batter?.id) return null;
+
+  const candidates = items.filter(
+    (item) =>
+      item.type === 'video' &&
+      hasHomeRunTaxonomy(item) &&
+      keywordValue(item, 'game_pk') === String(hr.gamePk) &&
+      keywordValue(item, 'player_id') === String(hr.batter.id)
+  );
+  return pickClosestByDate(candidates, hr);
+}
+
+/**
+ * Fallback #2: some highlight items carry no `player` keyword at all (only
+ * game_pk + the "home-run" taxonomy tag) — confirmed on a real item.
+ * Match by the batter's last name appearing in the headline/title, scoped
+ * to this game and "home-run"-tagged content only.
+ */
+function findVideoByPlayerName(items, hr) {
+  if (!hr.gamePk || !hr.batter?.name) return null;
+  const lastName = normalizeText(hr.batter.name).trim().split(/\s+/).pop();
+  if (!lastName) return null;
+
+  const candidates = items.filter((item) => {
+    if (item.type !== 'video' || !hasHomeRunTaxonomy(item)) return false;
+    if (keywordValue(item, 'game_pk') !== String(hr.gamePk)) return false;
+    const text = normalizeText([item.headline, item.title, item.blurb].filter(Boolean).join(' '));
+    return text.includes(lastName);
+  });
+  return pickClosestByDate(candidates, hr);
+}
 
 /**
  * Best-effort lookup of a video highlight for a specific home run. Not every
  * HR has one yet (data lag, blackouts) — resolves to null rather than
  * throwing when nothing matches, so callers can render a graceful fallback.
- * Matches by the play's unique `playId` against the game content feed's
- * highlight `guid`, which is the same play-level identifier.
  *
- * The underlying content fetch is otherwise cached indefinitely for the
- * session (see mlbApi.js), which would silently freeze a "not found yet"
- * answer forever. To avoid that: recent/still-Live plays always bypass the
- * cache (the clip may land any minute), and callers can force a bypass for
- * anything else via `forceRefresh` (e.g. a "check again" retry).
+ * `forceRefresh` bypasses the session-long content-fetch cache (see
+ * mlbApi.js) — pass it whenever the caller wants a fresh check rather than
+ * trusting a previous "not found" (e.g. reopening a detail view).
  */
-export async function getHomeRunVideo(hr, { signal, forceRefresh } = {}) {
-  if (!hr?.gamePk || !hr?.playId) return null;
-
-  const isRecentOrLive =
-    hr.gameStatus === 'Live' ||
-    (hr.timestamp && Date.now() - new Date(hr.timestamp).getTime() < VIDEO_RECHECK_WINDOW_MS);
+export async function getHomeRunVideo(hr, { signal, forceRefresh = false } = {}) {
+  if (!hr?.gamePk) return null;
 
   let content;
   try {
-    content = await fetchGameContent(hr.gamePk, { signal, forceRefresh: forceRefresh ?? isRecentOrLive });
+    content = await fetchGameContent(hr.gamePk, { signal, forceRefresh });
   } catch (error) {
     console.warn(`[mlb] failed to load content for game ${hr.gamePk}`, error);
     return null;
   }
 
   const items = content?.highlights?.highlights?.items ?? [];
-  const match = items.find((item) => item.guid === hr.playId);
+  const match = findVideoByGuid(items, hr.playId) ?? findVideoByKeywords(items, hr) ?? findVideoByPlayerName(items, hr);
   if (!match) return null;
 
   const playbacks = match.playbacks ?? [];
