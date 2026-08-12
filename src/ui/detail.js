@@ -44,6 +44,7 @@ export function createDetailModal(root) {
     requestToken += 1;
     const token = requestToken;
 
+    pauseActiveVideo(); // in case a previous HR's video was still playing
     lastFocused = document.activeElement;
     bodyEl.innerHTML = renderDetail(hr);
     modalEl.hidden = false;
@@ -54,20 +55,30 @@ export function createDetailModal(root) {
   }
 
   function close() {
+    pauseActiveVideo();
     modalEl.hidden = true;
     document.body.classList.remove('modal-open');
     if (lastFocused instanceof HTMLElement) lastFocused.focus();
   }
 
+  function pauseActiveVideo() {
+    bodyEl.querySelector('.detail__video-player')?.pause();
+  }
+
   async function loadVideo(hr, token) {
     const slot = bodyEl.querySelector('.detail__video');
+    const captionEl = bodyEl.querySelector('.detail__video-caption');
     if (!slot) return;
     try {
       const video = await getHomeRunVideo(hr);
       if (token !== requestToken) return; // a newer card was opened meanwhile
-      slot.innerHTML = video
-        ? renderVideo(video)
-        : `<p class="detail__video-empty">No highlight video found for this play yet.</p>`;
+      if (video) {
+        slot.innerHTML = renderVideoPlayer(video);
+        const caption = [video.title, video.duration].filter(Boolean).join(' · ');
+        if (captionEl) captionEl.textContent = caption;
+      } else {
+        slot.innerHTML = `<p class="detail__video-empty">No highlight video found for this play yet.</p>`;
+      }
     } catch {
       if (token !== requestToken) return;
       slot.innerHTML = `<p class="detail__video-empty">Couldn't load video.</p>`;
@@ -95,6 +106,7 @@ function renderDetail(hr) {
 
   return `
     <div class="detail__video"><p class="detail__video-loading">Loading video…</p></div>
+    <p class="detail__video-caption"></p>
     <h2 class="detail__player" id="modal-player">${escapeHtml(hr.batter?.name ?? 'Unknown batter')}</h2>
     <p class="detail__subline">${escapeHtml(teamLabel)}${opponentLabel ? ` vs ${escapeHtml(opponentLabel)}` : ''}</p>
     ${contextLine ? `<p class="detail__context">${escapeHtml(contextLine)}</p>` : ''}
@@ -121,17 +133,20 @@ function renderDetail(hr) {
   `;
 }
 
-function renderVideo(video) {
-  const caption = [video.title, video.duration].filter(Boolean).join(' · ') || 'Watch highlight';
+function renderVideoPlayer(video) {
+  // `playsinline` is what keeps iOS Safari from taking the video fullscreen
+  // on play — that's the whole point here. preload="metadata" shows the
+  // poster/duration without downloading the clip until the user hits play.
   return `
-    <a class="detail__video-link" href="${escapeHtml(video.url)}" target="_blank" rel="noopener noreferrer">
-      ${
-        video.thumbnail
-          ? `<img class="detail__video-thumb" src="${escapeHtml(video.thumbnail)}" alt="" loading="lazy" />`
-          : '<div class="detail__video-thumb detail__video-thumb--placeholder"></div>'
-      }
-      <span class="detail__video-play" aria-hidden="true">▶</span>
-      <span class="detail__video-caption">${escapeHtml(caption)}</span>
-    </a>
+    <video
+      class="detail__video-player"
+      controls
+      playsinline
+      preload="metadata"
+      ${video.thumbnail ? `poster="${escapeHtml(video.thumbnail)}"` : ''}
+      src="${escapeHtml(video.url)}"
+    >
+      <a href="${escapeHtml(video.url)}" target="_blank" rel="noopener noreferrer">Watch highlight</a>
+    </video>
   `;
 }
