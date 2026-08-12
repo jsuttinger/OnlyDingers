@@ -41,6 +41,19 @@ export function formatExitVelocity(mph) {
   return mph != null ? `${Math.round(mph * 10) / 10} mph` : null;
 }
 
+/** Clock-time label for "showing cached data from [time]" — same-day shows just the time, older shows date + time. */
+export function formatCacheTimestamp(isoString) {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const sameDay = date.toDateString() === new Date().toDateString();
+  if (sameDay) {
+    return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+  return date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
 /** "BOS 3 – NYY 5" style line, from an HR's finalScore + which side was home/away. */
 export function formatScoreLine(hr) {
   if (hr.finalScore?.home == null || hr.finalScore?.away == null) return null;

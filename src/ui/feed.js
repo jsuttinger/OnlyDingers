@@ -1,13 +1,15 @@
 import { renderHomeRunCard } from './card.js';
-import { escapeHtml } from './format.js';
+import { escapeHtml, formatCacheTimestamp } from './format.js';
 
 const PULL_THRESHOLD = 70;
 
 /**
  * Mounts the scrollable home run feed into `root`. Returns `{ render(state) }`
  * where `state` is whatever createAsyncResource() produces
- * ({status, data, error}), optionally with a custom `emptyMessage`. This
- * module knows nothing about the data layer.
+ * ({status, data, error}), optionally with a custom `emptyMessage`, and
+ * `isStale`/`fetchedAt` when showing a cached fallback (see homeRunsCache.js
+ * and getRecentHomeRunsResilient). This module knows nothing about the data
+ * layer beyond that shape.
  */
 export function createFeed(root, { onRefresh, onSelect } = {}) {
   root.innerHTML = `
@@ -54,16 +56,26 @@ export function createFeed(root, { onRefresh, onSelect } = {}) {
     const homeRuns = state.data ?? [];
     currentHomeRuns = homeRuns;
 
+    const staleBanner = renderStaleBanner(state);
+
     if (homeRuns.length === 0) {
       const message = state.emptyMessage ?? 'No home runs in the last couple of days. Check back soon.';
-      bodyEl.innerHTML = `<p class="feed__status">${escapeHtml(message)}</p>`;
+      bodyEl.innerHTML = `${staleBanner}<p class="feed__status">${escapeHtml(message)}</p>`;
       return;
     }
 
-    bodyEl.innerHTML = `<ul class="feed__list">${homeRuns.map(renderHomeRunCard).join('')}</ul>`;
+    bodyEl.innerHTML = `${staleBanner}<ul class="feed__list">${homeRuns.map(renderHomeRunCard).join('')}</ul>`;
   }
 
   return { render };
+}
+
+function renderStaleBanner(state) {
+  if (!state.isStale) return '';
+  const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  const lead = isOffline ? "You're offline — showing" : 'Showing';
+  const time = formatCacheTimestamp(state.fetchedAt);
+  return `<p class="feed__stale">📡 ${escapeHtml(lead)} cached data${time ? ` from ${escapeHtml(time)}` : ''}.</p>`;
 }
 
 /** Tap or Enter/Space on a card opens its detail view. */

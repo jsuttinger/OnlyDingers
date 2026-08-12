@@ -5,6 +5,7 @@
  * and this file (and its exports) can stay the same.
  */
 import { fetchSchedule, fetchGameFeed, fetchGameContent } from './mlbApi.js';
+import { saveHomeRunsToCache, loadHomeRunsFromCache } from './homeRunsCache.js';
 
 /** @typedef {'Preview'|'Live'|'Final'} GameStatus */
 
@@ -195,6 +196,38 @@ export async function getRecentHomeRuns({ daysBack = 2, endDate, signal } = {}) 
   );
 
   return perGame.flat().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+}
+
+/**
+ * Same as getRecentHomeRuns, but resilient to a failed fetch (offline, MLB
+ * API down): persists every successful result to localStorage, and falls
+ * back to the last persisted result — marked `isStale` — if the live fetch
+ * fails and there's nothing cached from before. `hasLiveGames` reflects the
+ * live fetch specifically (there's no way to know if a game is still live
+ * from stale data), so callers can use it to decide whether to keep polling.
+ *
+ * Calls getRecentGames with the same params as the internal call inside
+ * getRecentHomeRuns — those share mlbApi's request cache, so this doesn't
+ * cost an extra network round trip.
+ */
+export async function getRecentHomeRunsResilient({ daysBack = 2, endDate, signal } = {}) {
+  try {
+    const [homeRuns, games] = await Promise.all([
+      getRecentHomeRuns({ daysBack, endDate, signal }),
+      getRecentGames({ daysBack, endDate, signal }),
+    ]);
+    saveHomeRunsToCache(homeRuns);
+    return {
+      homeRuns,
+      isStale: false,
+      fetchedAt: new Date().toISOString(),
+      hasLiveGames: games.some((game) => game.status === 'Live'),
+    };
+  } catch (error) {
+    const cached = loadHomeRunsFromCache();
+    if (!cached) throw error;
+    return { homeRuns: cached.homeRuns, isStale: true, fetchedAt: cached.fetchedAt, hasLiveGames: false };
+  }
 }
 
 /**

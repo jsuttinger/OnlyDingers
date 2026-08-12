@@ -1,6 +1,6 @@
 import {
   createAsyncResource,
-  getRecentHomeRuns,
+  getRecentHomeRunsResilient,
   filterHomeRunsByRange,
   filterHomeRunsByTeam,
   getTeamsInHomeRuns,
@@ -12,6 +12,10 @@ import { createDetailModal } from './ui/detail.js';
 // Fetched once; Today/This Week/By Team are all filtered client-side from
 // this same "this week" superset, so switching filters never refetches.
 const BASE_DAYS_BACK = 7;
+
+// While a game in the current data is Live, poll for new home runs at this
+// interval. Nothing polls when everything's Final/Preview — no point.
+const LIVE_POLL_INTERVAL_MS = 60_000;
 
 /**
  * Root "component". Wires the data layer (src/data/) to the feed/filter/
@@ -43,27 +47,52 @@ export function createApp(root) {
   const detailRoot = root.querySelector('#detail-root');
   const refreshBtn = root.querySelector('#refresh-btn');
 
-  const resource = createAsyncResource(getRecentHomeRuns);
+  const resource = createAsyncResource(getRecentHomeRunsResilient);
   const detail = createDetailModal(detailRoot);
-  const feed = createFeed(feedRoot, { onRefresh: refresh, onSelect: (hr) => detail.open(hr) });
+  const feed = createFeed(feedRoot, { onRefresh: () => refresh(), onSelect: (hr) => detail.open(hr) });
   const filters = createFilters(filtersRoot, { onChange: renderFeed });
 
+  let pollTimer = null;
+
   resource.subscribe((state) => {
-    if (state.status === 'success') filters.setTeams(getTeamsInHomeRuns(state.data));
+    if (state.status === 'success') {
+      filters.setTeams(getTeamsInHomeRuns(state.data.homeRuns));
+      schedulePoll(state.data.hasLiveGames);
+    }
     renderFeed();
   });
 
   refresh();
-  refreshBtn.addEventListener('click', refresh);
+  refreshBtn.addEventListener('click', () => refresh());
 
-  function refresh() {
-    refreshBtn.classList.add('is-spinning');
+  /** `silent` skips the button-spin feedback — used for the background live-game poll. */
+  function refresh({ silent = false } = {}) {
+    if (!silent) refreshBtn.classList.add('is-spinning');
     // The subscriber above already reacts to success/error; swallow the
     // rejection here so it doesn't also surface as an unhandled rejection.
     resource
       .load({ daysBack: BASE_DAYS_BACK })
       .catch(() => {})
-      .finally(() => setTimeout(() => refreshBtn.classList.remove('is-spinning'), 400));
+      .finally(() => {
+        if (!silent) setTimeout(() => refreshBtn.classList.remove('is-spinning'), 400);
+      });
+  }
+
+  /** Re-arms (or cancels) the live-game poll based on the most recent fetch. */
+  function schedulePoll(hasLiveGames) {
+    clearTimeout(pollTimer);
+    pollTimer = null;
+    if (!hasLiveGames) return;
+
+    pollTimer = setTimeout(() => {
+      if (document.visibilityState === 'visible') {
+        refresh({ silent: true });
+      } else {
+        // Backgrounded — skip this fetch, just check again next interval.
+        // (Coming back to the tab doesn't need its own listener this way.)
+        schedulePoll(true);
+      }
+    }, LIVE_POLL_INTERVAL_MS);
   }
 
   function renderFeed() {
@@ -73,13 +102,20 @@ export function createApp(root) {
       return;
     }
 
+    const { homeRuns: allHomeRuns, isStale, fetchedAt } = resourceState.data;
     const filterState = filters.getState();
-    let homeRuns = filterHomeRunsByRange(resourceState.data, filterState.range === 'team' ? 'week' : filterState.range);
+    let homeRuns = filterHomeRunsByRange(allHomeRuns, filterState.range === 'team' ? 'week' : filterState.range);
     if (filterState.range === 'team') {
       homeRuns = filterHomeRunsByTeam(homeRuns, filterState.teamId);
     }
 
-    feed.render({ ...resourceState, data: homeRuns, emptyMessage: emptyMessageFor(filterState) });
+    feed.render({
+      ...resourceState,
+      data: homeRuns,
+      emptyMessage: emptyMessageFor(filterState),
+      isStale,
+      fetchedAt,
+    });
   }
 
   function emptyMessageFor(filterState) {

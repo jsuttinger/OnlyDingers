@@ -43,6 +43,28 @@ export default defineConfig(({ command }) => ({
       devOptions: {
         enabled: true,
       },
+      workbox: {
+        runtimeCaching: [
+          {
+            // The MLB Stats API itself (schedule, game feeds, content/video
+            // lookups) — separate from the precached app shell above.
+            // NetworkFirst: always prefer a live response, but fall back to
+            // the last cached one (per URL) if the network fails or is too
+            // slow, so a flaky connection degrades gracefully.
+            urlPattern: ({ url }) => url.origin === 'https://statsapi.mlb.com',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'mlb-api',
+              networkTimeoutSeconds: 6,
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 12, // 12 hours
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
+      },
     }),
   ],
   server: {

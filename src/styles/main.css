@@ -200,6 +200,17 @@ body {
   gap: 0.7rem;
 }
 
+.feed__stale {
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+}
+
 /* ---------- Card ---------- */
 
 .card {

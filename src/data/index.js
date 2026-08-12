@@ -9,6 +9,7 @@ export {
   getRecentGames,
   getHomeRuns,
   getRecentHomeRuns,
+  getRecentHomeRunsResilient,
   getHomeRunVideo,
   filterHomeRunsByRange,
   filterHomeRunsByTeam,
