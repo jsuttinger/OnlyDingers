@@ -65,24 +65,40 @@ export function createDetailModal(root) {
     bodyEl.querySelector('.detail__video-player')?.pause();
   }
 
-  async function loadVideo(hr, token) {
+  async function loadVideo(hr, token, { forceRefresh = false } = {}) {
     const slot = bodyEl.querySelector('.detail__video');
     const captionEl = bodyEl.querySelector('.detail__video-caption');
     if (!slot) return;
+
+    if (forceRefresh) slot.innerHTML = `<p class="detail__video-loading">Checking for video…</p>`;
+
     try {
-      const video = await getHomeRunVideo(hr);
+      const video = await getHomeRunVideo(hr, { forceRefresh });
       if (token !== requestToken) return; // a newer card was opened meanwhile
       if (video) {
         slot.innerHTML = renderVideoPlayer(video);
         const caption = [video.title, video.duration].filter(Boolean).join(' · ');
         if (captionEl) captionEl.textContent = caption;
       } else {
-        slot.innerHTML = `<p class="detail__video-empty">No highlight video found for this play yet.</p>`;
+        renderNoVideo(slot, hr, token);
       }
     } catch {
       if (token !== requestToken) return;
       slot.innerHTML = `<p class="detail__video-empty">Couldn't load video.</p>`;
     }
+  }
+
+  /** "Not found" isn't necessarily permanent — MLB may publish the clip later. Let the user recheck. */
+  function renderNoVideo(slot, hr, token) {
+    slot.innerHTML = `
+      <div class="detail__video-empty">
+        <p>No highlight video found for this play yet.</p>
+        <button class="detail__video-retry" type="button">Check again</button>
+      </div>
+    `;
+    slot
+      .querySelector('.detail__video-retry')
+      ?.addEventListener('click', () => loadVideo(hr, token, { forceRefresh: true }));
   }
 
   return { open, close };

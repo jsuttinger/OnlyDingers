@@ -230,19 +230,34 @@ export async function getRecentHomeRunsResilient({ daysBack = 2, endDate, signal
   }
 }
 
+// MLB often publishes a play's highlight clip some time after it happens —
+// this is how long after the play we keep treating "not found" as possibly
+// just "not published yet" rather than a settled answer.
+const VIDEO_RECHECK_WINDOW_MS = 6 * 60 * 60 * 1000; // 6 hours
+
 /**
  * Best-effort lookup of a video highlight for a specific home run. Not every
  * HR has one yet (data lag, blackouts) — resolves to null rather than
  * throwing when nothing matches, so callers can render a graceful fallback.
  * Matches by the play's unique `playId` against the game content feed's
  * highlight `guid`, which is the same play-level identifier.
+ *
+ * The underlying content fetch is otherwise cached indefinitely for the
+ * session (see mlbApi.js), which would silently freeze a "not found yet"
+ * answer forever. To avoid that: recent/still-Live plays always bypass the
+ * cache (the clip may land any minute), and callers can force a bypass for
+ * anything else via `forceRefresh` (e.g. a "check again" retry).
  */
-export async function getHomeRunVideo(hr, { signal } = {}) {
+export async function getHomeRunVideo(hr, { signal, forceRefresh } = {}) {
   if (!hr?.gamePk || !hr?.playId) return null;
+
+  const isRecentOrLive =
+    hr.gameStatus === 'Live' ||
+    (hr.timestamp && Date.now() - new Date(hr.timestamp).getTime() < VIDEO_RECHECK_WINDOW_MS);
 
   let content;
   try {
-    content = await fetchGameContent(hr.gamePk, { signal });
+    content = await fetchGameContent(hr.gamePk, { signal, forceRefresh: forceRefresh ?? isRecentOrLive });
   } catch (error) {
     console.warn(`[mlb] failed to load content for game ${hr.gamePk}`, error);
     return null;
