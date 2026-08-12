@@ -4,7 +4,7 @@
  * should import from — swap mlbApi.js for a different data source later
  * and this file (and its exports) can stay the same.
  */
-import { fetchSchedule, fetchGameFeed } from './mlbApi.js';
+import { fetchSchedule, fetchGameFeed, fetchGameContent } from './mlbApi.js';
 
 /** @typedef {'Preview'|'Live'|'Final'} GameStatus */
 
@@ -15,10 +15,14 @@ function toISODate(date) {
   return `${y}-${m}-${d}`;
 }
 
-function normalizeGame(raw) {
+function normalizeGame(raw, scheduleDate) {
   return {
     gamePk: raw.gamePk,
     date: raw.gameDate,
+    // The MLB schedule day this game belongs to (YYYY-MM-DD) — not always
+    // the same calendar date as `date` once you account for time zones
+    // (e.g. a 10pm ET start is already "tomorrow" in UTC).
+    scheduleDate,
     /** @type {GameStatus} */
     status: raw.status?.abstractGameState ?? 'Unknown',
     detailedStatus: raw.status?.detailedState ?? '',
@@ -36,12 +40,15 @@ function normalizeGame(raw) {
   };
 }
 
+function normalizeScheduleResponse(data) {
+  return (data.dates ?? []).flatMap((day) => (day.games ?? []).map((game) => normalizeGame(game, day.date)));
+}
+
 /** Get all games scheduled for a given date (defaults to today, local time). */
 export async function getGamesForDate(date = new Date(), { signal } = {}) {
   const iso = typeof date === 'string' ? date : toISODate(date);
   const data = await fetchSchedule({ date: iso, signal });
-  const games = (data.dates ?? []).flatMap((d) => d.games ?? []);
-  return games.map(normalizeGame);
+  return normalizeScheduleResponse(data);
 }
 
 /**
@@ -59,14 +66,12 @@ export async function getRecentGames({ daysBack = 3, endDate = new Date(), signa
     endDate: toISODate(end),
     signal,
   });
-  const games = (data.dates ?? []).flatMap((d) => d.games ?? []);
-  return games.map(normalizeGame).sort((a, b) => new Date(b.date) - new Date(a.date));
+  return normalizeScheduleResponse(data).sort((a, b) => new Date(b.date) - new Date(a.date));
 }
 
-/** Pull the Statcast hit data (distance/exit velo/launch angle) off a play, if present. */
-function extractHitData(play) {
-  const eventWithHit = play.playEvents?.find((event) => event.hitData);
-  return eventWithHit?.hitData ?? null;
+/** Find the specific playEvent that recorded the ball in play (has hitData + a playId). */
+function findHitEvent(play) {
+  return play.playEvents?.find((event) => event.hitData) ?? null;
 }
 
 function normalizeTeam(team) {
@@ -83,10 +88,13 @@ function normalizeHomeRun(play, { home, away }) {
   const isTop = play.about?.halfInning === 'top';
   const battingTeam = isTop ? away : home;
   const opponentTeam = isTop ? home : away;
-  const hitData = extractHitData(play);
+  const hitEvent = findHitEvent(play);
+  const hitData = hitEvent?.hitData ?? null;
 
   return {
     id: String(play.about?.atBatIndex ?? `${play.result?.description ?? 'hr'}-${play.about?.startTime ?? ''}`),
+    // Matches a video highlight's `guid` in the game's content feed (see getHomeRunVideo).
+    playId: hitEvent?.playId ?? null,
     inning: play.about?.inning ?? null,
     halfInning: play.about?.halfInning ?? null,
     team: normalizeTeam(battingTeam),
@@ -148,6 +156,13 @@ export async function getHomeRuns(gamePk, { signal, forceRefresh = false } = {})
     .filter((play) => play.result?.event === 'Home Run')
     .map((play) => normalizeHomeRun(play, { home, away }));
 
+  for (const hr of homeRuns) {
+    hr.gamePk = gamePk;
+    // hr.id (built from atBatIndex) is only unique within one game — prefix
+    // with gamePk so it's safe to use as a key once games get aggregated.
+    hr.id = `${gamePk}-${hr.id}`;
+  }
+
   return tagMultiHomerGames(homeRuns);
 }
 
@@ -164,7 +179,14 @@ export async function getRecentHomeRuns({ daysBack = 2, endDate, signal } = {}) 
     startedGames.map(async (game) => {
       try {
         const homeRuns = await getHomeRuns(game.gamePk, { signal });
-        return homeRuns.map((hr) => ({ ...hr, gamePk: game.gamePk, gameDate: game.date }));
+        return homeRuns.map((hr) => ({
+          ...hr,
+          gameDate: game.date,
+          gameScheduleDate: game.scheduleDate,
+          venue: game.venue,
+          gameStatus: game.status,
+          finalScore: { home: game.home.score, away: game.away.score },
+        }));
       } catch (error) {
         console.warn(`[mlb] failed to load home runs for game ${game.gamePk}`, error);
         return [];
@@ -173,4 +195,67 @@ export async function getRecentHomeRuns({ daysBack = 2, endDate, signal } = {}) 
   );
 
   return perGame.flat().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+}
+
+/**
+ * Best-effort lookup of a video highlight for a specific home run. Not every
+ * HR has one yet (data lag, blackouts) — resolves to null rather than
+ * throwing when nothing matches, so callers can render a graceful fallback.
+ * Matches by the play's unique `playId` against the game content feed's
+ * highlight `guid`, which is the same play-level identifier.
+ */
+export async function getHomeRunVideo(hr, { signal } = {}) {
+  if (!hr?.gamePk || !hr?.playId) return null;
+
+  let content;
+  try {
+    content = await fetchGameContent(hr.gamePk, { signal });
+  } catch (error) {
+    console.warn(`[mlb] failed to load content for game ${hr.gamePk}`, error);
+    return null;
+  }
+
+  const items = content?.highlights?.highlights?.items ?? [];
+  const match = items.find((item) => item.guid === hr.playId);
+  if (!match) return null;
+
+  const playbacks = match.playbacks ?? [];
+  const playback =
+    playbacks.find((p) => p.name === 'mp4Avc') ??
+    playbacks.find((p) => p.name === 'hlsCloud') ??
+    playbacks[0] ??
+    null;
+  if (!playback?.url) return null;
+
+  return {
+    title: match.title ?? match.headline ?? null,
+    description: match.description ?? match.blurb ?? null,
+    duration: match.duration ?? null,
+    url: playback.url,
+    thumbnail: match.image?.cuts?.[0]?.src ?? null,
+  };
+}
+
+/** 'today' keeps only HRs from games on today's MLB schedule day; 'week' (or anything else) is a no-op. */
+export function filterHomeRunsByRange(homeRuns, range) {
+  if (range !== 'today') return homeRuns;
+  const todayIso = toISODate(new Date());
+  return homeRuns.filter((hr) => hr.gameScheduleDate === todayIso);
+}
+
+/** Keeps only HRs from the given team id. A falsy teamId is a no-op (shows everything). */
+export function filterHomeRunsByTeam(homeRuns, teamId) {
+  if (teamId == null) return homeRuns;
+  return homeRuns.filter((hr) => hr.team?.id === teamId);
+}
+
+/** Distinct teams present in a list of HRs, alphabetical — for populating a team filter. */
+export function getTeamsInHomeRuns(homeRuns) {
+  const byId = new Map();
+  for (const hr of homeRuns) {
+    if (hr.team?.id != null && !byId.has(hr.team.id)) {
+      byId.set(hr.team.id, hr.team);
+    }
+  }
+  return [...byId.values()].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
 }

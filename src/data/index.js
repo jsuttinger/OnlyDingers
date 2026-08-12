@@ -4,5 +4,14 @@
  * swapped out later without touching call sites.
  */
 export { MlbApiError, clearCache } from './mlbApi.js';
-export { getGamesForDate, getRecentGames, getHomeRuns, getRecentHomeRuns } from './homeRuns.js';
+export {
+  getGamesForDate,
+  getRecentGames,
+  getHomeRuns,
+  getRecentHomeRuns,
+  getHomeRunVideo,
+  filterHomeRunsByRange,
+  filterHomeRunsByTeam,
+  getTeamsInHomeRuns,
+} from './homeRuns.js';
 export { createAsyncResource } from './asyncState.js';

@@ -6,9 +6,10 @@ const PULL_THRESHOLD = 70;
 /**
  * Mounts the scrollable home run feed into `root`. Returns `{ render(state) }`
  * where `state` is whatever createAsyncResource() produces
- * ({status, data, error}) — this module knows nothing about the data layer.
+ * ({status, data, error}), optionally with a custom `emptyMessage`. This
+ * module knows nothing about the data layer.
  */
-export function createFeed(root, { onRefresh } = {}) {
+export function createFeed(root, { onRefresh, onSelect } = {}) {
   root.innerHTML = `
     <div class="feed__pull" id="feed-pull"></div>
     <div class="feed__scroll" id="feed-scroll">
@@ -20,8 +21,17 @@ export function createFeed(root, { onRefresh } = {}) {
   const bodyEl = root.querySelector('#feed-body');
   const pullEl = root.querySelector('#feed-pull');
 
+  // Tracks whatever was last rendered, so a card tap can look up its full
+  // record (feed.js only ever holds rendered HTML, not the data objects).
+  let currentHomeRuns = [];
+
   wirePullToRefresh({ scrollEl, pullEl, onRefresh });
-  wireCardExpansion(bodyEl);
+  wireCardSelection(bodyEl, {
+    onSelect: (id) => {
+      const hr = currentHomeRuns.find((item) => item.id === id);
+      if (hr) onSelect?.(hr);
+    },
+  });
 
   function render(state) {
     if (state.status === 'idle' || state.status === 'loading') {
@@ -42,8 +52,11 @@ export function createFeed(root, { onRefresh } = {}) {
     }
 
     const homeRuns = state.data ?? [];
+    currentHomeRuns = homeRuns;
+
     if (homeRuns.length === 0) {
-      bodyEl.innerHTML = `<p class="feed__status">No home runs in the last couple of days. Check back soon.</p>`;
+      const message = state.emptyMessage ?? 'No home runs in the last couple of days. Check back soon.';
+      bodyEl.innerHTML = `<p class="feed__status">${escapeHtml(message)}</p>`;
       return;
     }
 
@@ -53,11 +66,11 @@ export function createFeed(root, { onRefresh } = {}) {
   return { render };
 }
 
-/** Tap or Enter/Space toggles a card's expanded (full play description) state. */
-function wireCardExpansion(bodyEl) {
+/** Tap or Enter/Space on a card opens its detail view. */
+function wireCardSelection(bodyEl, { onSelect }) {
   bodyEl.addEventListener('click', (event) => {
     const card = event.target.closest('.card');
-    if (card) toggleCard(card);
+    if (card) onSelect(card.dataset.hrId);
   });
 
   bodyEl.addEventListener('keydown', (event) => {
@@ -65,13 +78,8 @@ function wireCardExpansion(bodyEl) {
     const card = event.target.closest('.card');
     if (!card) return;
     event.preventDefault();
-    toggleCard(card);
+    onSelect(card.dataset.hrId);
   });
-}
-
-function toggleCard(card) {
-  const expanded = card.classList.toggle('is-expanded');
-  card.setAttribute('aria-expanded', String(expanded));
 }
 
 /** Minimal touch-driven pull-to-refresh: drag down from the top of the list to refresh. */

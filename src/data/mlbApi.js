@@ -93,6 +93,17 @@ export async function fetchGameFeed(gamePk, { signal, forceRefresh = false } = {
   return fetchJson(url, { signal, forceRefresh });
 }
 
+/**
+ * Fetch a game's editorial/media content — this is where video highlights
+ * live. A highlight item's `guid` matches a play's `playId`, which is how
+ * we find the clip for a specific home run.
+ */
+export async function fetchGameContent(gamePk, { signal, forceRefresh = false } = {}) {
+  if (!gamePk) throw new MlbApiError('fetchGameContent requires a gamePk.');
+  const url = buildUrl(`/v1/game/${gamePk}/content`);
+  return fetchJson(url, { signal, forceRefresh });
+}
+
 /** Clears the in-memory cache, or just entries whose URL starts with `urlPrefix`. */
 export function clearCache(urlPrefix) {
   if (!urlPrefix) {

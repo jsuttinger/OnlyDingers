@@ -1,12 +1,23 @@
 /**
  * Static fixture matching the shape getRecentHomeRuns() resolves to.
  * Handy for iterating on the UI without waiting on the network, and for
- * exercising states (multi-HR games, missing Statcast data) that aren't
- * guaranteed to be in whatever games are live right now.
+ * exercising states (multi-HR games, missing Statcast data, no video) that
+ * aren't guaranteed to be in whatever games are live right now.
  */
+function toISODate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+const today = toISODate(new Date());
+const yesterday = toISODate(new Date(Date.now() - 24 * 60 * 60 * 1000));
+
 export const mockHomeRuns = [
   {
     id: 'mock-1',
+    playId: 'mock-playid-1',
     inning: 7,
     halfInning: 'bottom',
     team: { id: 147, name: 'New York Yankees', abbreviation: 'NYY' },
@@ -24,11 +35,16 @@ export const mockHomeRuns = [
     timestamp: new Date(Date.now() - 6 * 60 * 1000).toISOString(),
     gamePk: 1,
     gameDate: new Date().toISOString(),
+    gameScheduleDate: today,
+    gameStatus: 'Live',
+    venue: 'Yankee Stadium',
+    finalScore: { home: 5, away: 3 },
     gameHrNumber: 1,
     gameHrTotal: 1,
   },
   {
     id: 'mock-2',
+    playId: 'mock-playid-2',
     inning: 5,
     halfInning: 'top',
     team: { id: 119, name: 'Los Angeles Dodgers', abbreviation: 'LAD' },
@@ -46,11 +62,17 @@ export const mockHomeRuns = [
     timestamp: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
     gamePk: 2,
     gameDate: new Date().toISOString(),
+    gameScheduleDate: today,
+    gameStatus: 'Final',
+    venue: 'Oracle Park',
+    finalScore: { home: 1, away: 6 },
     gameHrNumber: 2,
     gameHrTotal: 2,
   },
   {
     id: 'mock-3',
+    // No playId on purpose — exercises the "no video available" state.
+    playId: null,
     inning: 2,
     halfInning: 'top',
     team: { id: 119, name: 'Los Angeles Dodgers', abbreviation: 'LAD' },
@@ -69,15 +91,20 @@ export const mockHomeRuns = [
     timestamp: new Date(Date.now() - 95 * 60 * 1000).toISOString(),
     gamePk: 2,
     gameDate: new Date().toISOString(),
+    gameScheduleDate: today,
+    gameStatus: 'Final',
+    venue: 'Oracle Park',
+    finalScore: { home: 1, away: 6 },
     gameHrNumber: 1,
     gameHrTotal: 2,
   },
   {
     id: 'mock-4',
+    playId: 'mock-playid-4',
     inning: 9,
     halfInning: 'bottom',
-    team: { id: 147, name: 'Milwaukee Brewers', abbreviation: 'MIL' },
-    opponent: { id: 158, name: 'Chicago Cubs', abbreviation: 'CHC' },
+    team: { id: 158, name: 'Milwaukee Brewers', abbreviation: 'MIL' },
+    opponent: { id: 112, name: 'Chicago Cubs', abbreviation: 'CHC' },
     batter: { id: 4, name: 'Christian Yelich' },
     pitcher: { id: 5, name: 'Closer Guy' },
     description: 'Christian Yelich homers (12) on a fly ball to right field. Walk-off!',
@@ -88,9 +115,13 @@ export const mockHomeRuns = [
     exitVelocityMph: 103.5,
     launchAngleDegrees: 30,
     trajectory: 'fly_ball',
-    timestamp: new Date(Date.now() - 60 * 60 * 60 * 1000).toISOString(),
+    timestamp: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
     gamePk: 3,
     gameDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    gameScheduleDate: yesterday,
+    gameStatus: 'Final',
+    venue: 'American Family Field',
+    finalScore: { home: 9, away: 6 },
     gameHrNumber: 1,
     gameHrTotal: 1,
   },

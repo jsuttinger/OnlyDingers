@@ -41,6 +41,17 @@ export function formatExitVelocity(mph) {
   return mph != null ? `${Math.round(mph * 10) / 10} mph` : null;
 }
 
+/** "BOS 3 – NYY 5" style line, from an HR's finalScore + which side was home/away. */
+export function formatScoreLine(hr) {
+  if (hr.finalScore?.home == null || hr.finalScore?.away == null) return null;
+  const isTop = hr.halfInning === 'top'; // visiting team bats in the top half
+  const homeTeam = isTop ? hr.opponent : hr.team;
+  const awayTeam = isTop ? hr.team : hr.opponent;
+  const homeLabel = homeTeam?.abbreviation ?? homeTeam?.name ?? 'Home';
+  const awayLabel = awayTeam?.abbreviation ?? awayTeam?.name ?? 'Away';
+  return `${awayLabel} ${hr.finalScore.away} – ${homeLabel} ${hr.finalScore.home}`;
+}
+
 export function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (char) => {
     switch (char) {
