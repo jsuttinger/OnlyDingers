@@ -427,20 +427,24 @@ body.modal-open {
 }
 
 .detail__video-retry {
-  min-height: 36px;
-  padding: 0 1.1rem;
-  border-radius: 999px;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 50%;
   border: 1px solid var(--accent);
   background: transparent;
   color: var(--accent);
-  font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
 .detail__video-retry:active {
   background: var(--accent-soft);
+  transform: scale(0.94);
 }
 
 .detail__video-player {

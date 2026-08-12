@@ -80,20 +80,22 @@ export function createDetailModal(root) {
         const caption = [video.title, video.duration].filter(Boolean).join(' · ');
         if (captionEl) captionEl.textContent = caption;
       } else {
-        renderNoVideo(slot, hr, token);
+        renderVideoUnavailable(slot, hr, token, 'No highlight video found for this play yet.');
       }
     } catch {
       if (token !== requestToken) return;
-      slot.innerHTML = `<p class="detail__video-empty">Couldn't load video.</p>`;
+      renderVideoUnavailable(slot, hr, token, "Couldn't load video.");
     }
   }
 
-  /** "Not found" isn't necessarily permanent — MLB may publish the clip later. Let the user recheck. */
-  function renderNoVideo(slot, hr, token) {
+  /** Neither "not found" nor a load error is necessarily permanent — let the user recheck. */
+  function renderVideoUnavailable(slot, hr, token, message) {
     slot.innerHTML = `
       <div class="detail__video-empty">
-        <p>No highlight video found for this play yet.</p>
-        <button class="detail__video-retry" type="button">Check again</button>
+        <p>${escapeHtml(message)}</p>
+        <button class="detail__video-retry" type="button" aria-label="Check again for video">
+          <span aria-hidden="true">↻</span>
+        </button>
       </div>
     `;
     slot
