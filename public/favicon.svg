@@ -1,6 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#0b0f19" />
-  <circle cx="32" cy="32" r="20" fill="#f5f7fa" />
-  <path d="M18 22c6 4 6 16 0 20" fill="none" stroke="#ff6b35" stroke-width="2" />
-  <path d="M46 22c-6 4-6 16 0 20" fill="none" stroke="#ff6b35" stroke-width="2" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect width="100" height="100" rx="22" fill="#0b0f19" />
+  <g>
+    <!-- back (trailing) leg, extended -->
+    <path d="M58,54 L74,66 L92,84" fill="none" stroke="#f5f7fa" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" />
+    <ellipse cx="95" cy="87" rx="7" ry="4" transform="rotate(28 95 87)" fill="#f5f7fa" />
+    <!-- front (bracing) leg, bent -->
+    <path d="M46,55 L37,70 L33,88" fill="none" stroke="#f5f7fa" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" />
+    <ellipse cx="28" cy="90" rx="7" ry="4" transform="rotate(-18 28 90)" fill="#f5f7fa" />
+    <!-- bat -->
+    <path d="M60,52 L91,89" fill="none" stroke="#ff6b35" stroke-width="3.4" stroke-linecap="round" />
+    <circle cx="60" cy="52" r="3" fill="#ff6b35" />
+    <!-- back (lower) arm to bat grip -->
+    <path d="M59,26 L63,40 L60,52" fill="none" stroke="#f5f7fa" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" />
+    <!-- torso -->
+    <path d="M44,21 L60,23 L59,54 L46,55 Z" fill="#f5f7fa" />
+    <!-- front (raised) arm -->
+    <path d="M45,24 L29,32 L17,39" fill="none" stroke="#f5f7fa" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" />
+    <!-- head + cap -->
+    <circle cx="53" cy="18" r="8" fill="#f5f7fa" />
+    <path d="M45.5,17 A8,8 0 0 1 53,10 L53,15 C50,15 47.5,15.8 45.5,17 Z" fill="#f5f7fa" />
+  </g>
 </svg>
