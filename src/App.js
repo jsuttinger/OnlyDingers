@@ -32,19 +32,7 @@ export function createApp(root) {
     <div class="app">
       <header class="app__header">
         <div class="app__heading">
-          <svg class="app__badge" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-            <path d="M58,54 L74,66 L92,84" fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" />
-            <ellipse cx="95" cy="87" rx="7" ry="4" transform="rotate(28 95 87)" fill="currentColor" />
-            <path d="M46,55 L37,70 L33,88" fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" />
-            <ellipse cx="28" cy="90" rx="7" ry="4" transform="rotate(-18 28 90)" fill="currentColor" />
-            <path d="M60,52 L91,89" fill="none" stroke="var(--accent)" stroke-width="3.4" stroke-linecap="round" />
-            <circle cx="60" cy="52" r="3" fill="var(--accent)" />
-            <path d="M59,26 L63,40 L60,52" fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M44,21 L60,23 L59,54 L46,55 Z" fill="currentColor" />
-            <path d="M45,24 L29,32 L17,39" fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" />
-            <circle cx="53" cy="18" r="8" fill="currentColor" />
-            <path d="M45.5,17 A8,8 0 0 1 53,10 L53,15 C50,15 47.5,15.8 45.5,17 Z" fill="currentColor" />
-          </svg>
+          <span class="app__badge">⚾️</span>
           <div>
             <h1 class="app__title">Only Dingers</h1>
             <p class="app__subtitle">MLB home runs, right on your home screen.</p>

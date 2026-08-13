@@ -75,10 +75,8 @@ body {
 }
 
 .app__badge {
-  width: 2rem;
-  height: 2rem;
+  font-size: 1.75rem;
   flex-shrink: 0;
-  color: var(--fg);
 }
 
 .app__title {
