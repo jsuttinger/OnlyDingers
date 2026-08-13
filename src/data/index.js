@@ -13,6 +13,9 @@ export {
   getHomeRunVideo,
   filterHomeRunsByRange,
   filterHomeRunsByTeam,
+  filterHomeRunsByPlayer,
+  getMostRecentHomeRunByPlayer,
   getTeamsInHomeRuns,
 } from './homeRuns.js';
+export { getHomeRunLeaders, getPlayerStreak, LEADER_WINDOWS } from './leaders.js';
 export { createAsyncResource } from './asyncState.js';

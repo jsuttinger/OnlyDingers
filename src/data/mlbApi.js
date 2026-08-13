@@ -104,6 +104,37 @@ export async function fetchGameContent(gamePk, { signal, forceRefresh = false } 
   return fetchJson(url, { signal, forceRefresh });
 }
 
+/**
+ * Fetch the official season leaderboard for a stat category. Used for the
+ * "Season" leaders window — pulling this from MLB's own leaders endpoint
+ * instead of aggregating hundreds of individual game feeds client-side.
+ */
+export async function fetchStatsLeaders({
+  leaderCategories = 'homeRuns',
+  statGroup = 'hitting',
+  season,
+  limit = 10,
+  sportId = 1,
+  signal,
+  forceRefresh = false,
+} = {}) {
+  const url = buildUrl('/v1/stats/leaders', { leaderCategories, statGroup, season, limit, sportId });
+  return fetchJson(url, { signal, forceRefresh });
+}
+
+/**
+ * Fetch a player's game-by-game hitting log for a season — one entry per
+ * game actually played (off days simply have no entry, doubleheaders have
+ * two same-date entries), which is exactly what's needed to compute a
+ * "consecutive games with a HR" streak without being thrown off by
+ * calendar gaps.
+ */
+export async function fetchPlayerGameLog(personId, { season, signal, forceRefresh = false } = {}) {
+  if (!personId) throw new MlbApiError('fetchPlayerGameLog requires a personId.');
+  const url = buildUrl(`/v1/people/${personId}/stats`, { stats: 'gameLog', group: 'hitting', season });
+  return fetchJson(url, { signal, forceRefresh });
+}
+
 /** Clears the in-memory cache, or just entries whose URL starts with `urlPrefix`. */
 export function clearCache(urlPrefix) {
   if (!urlPrefix) {

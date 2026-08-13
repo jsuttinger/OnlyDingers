@@ -302,6 +302,13 @@ body {
   padding: 0 1.25rem 0.85rem;
 }
 
+.filters__tabs[hidden] {
+  /* The `hidden` attribute would otherwise lose to `.filters__tabs { display: flex }`
+     below — same specificity, and this is an author rule either way, so the
+     later/more-specific one wins unless we say so explicitly here. */
+  display: none;
+}
+
 .filters__tabs {
   display: flex;
   gap: 0.4rem;
@@ -341,6 +348,95 @@ body {
   color: var(--fg);
   font-family: inherit;
   font-size: 0.9rem;
+}
+
+.filters__tabs--sub {
+  margin-top: 0.5rem;
+}
+
+.filters__tabs--sub .filters__tab {
+  font-size: 0.72rem;
+  min-height: 34px;
+}
+
+/* ---------- Leaderboard ---------- */
+
+.leaders__list {
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.leader-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.5rem 0.75rem;
+  min-height: 44px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.leader-row:active {
+  background: var(--accent-soft);
+}
+
+.leader-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.leader-row__rank {
+  flex-shrink: 0;
+  width: 1.5rem;
+  text-align: center;
+  font-weight: 800;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.leader-row__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.leader-row__team {
+  flex-shrink: 0;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 0.18rem 0.42rem;
+  border-radius: 999px;
+}
+
+.leader-row__hr {
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 0.85rem;
+  min-width: 3.2rem;
+  text-align: right;
+}
+
+.leader-row__streak {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
 }
 
 /* ---------- Detail modal ---------- */

@@ -366,6 +366,18 @@ export function filterHomeRunsByTeam(homeRuns, teamId) {
   return homeRuns.filter((hr) => hr.team?.id === teamId);
 }
 
+/** Keeps only HRs from the given batter id. A falsy playerId is a no-op. */
+export function filterHomeRunsByPlayer(homeRuns, playerId) {
+  if (playerId == null) return homeRuns;
+  return homeRuns.filter((hr) => hr.batter?.id === playerId);
+}
+
+/** Most recent HR by the given batter id in this list, or null. Assumes newest-first order (as getRecentHomeRuns returns). */
+export function getMostRecentHomeRunByPlayer(homeRuns, playerId) {
+  if (playerId == null) return null;
+  return homeRuns.find((hr) => hr.batter?.id === playerId) ?? null;
+}
+
 /** Distinct teams present in a list of HRs, alphabetical — for populating a team filter. */
 export function getTeamsInHomeRuns(homeRuns) {
   const byId = new Map();
