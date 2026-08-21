@@ -35,7 +35,7 @@ export function createApp(root) {
           <span class="app__badge">⚾️</span>
           <div>
             <h1 class="app__title">Only Dingers</h1>
-            <p class="app__subtitle">MLB home runs, right on your home screen.</p>
+            <p class="app__subtitle">Bye bye baby!</p>
           </div>
         </div>
         <button class="refresh-btn" id="refresh-btn" type="button" aria-label="Refresh">
